@@ -1,0 +1,7 @@
+timestamp,sample,surface_temperature_C,internal_temperature_C,ambient_temperature_C,humidity_percent,wind_speed_m_s,irradiance_W_m2
+2026-06-21T12:00:00Z,bare,48.2,51.0,34.6,27.3,1.2,736
+2026-06-21T12:00:00Z,white,39.4,42.1,34.6,27.3,1.2,736
+2026-06-21T12:00:00Z,stratovane,37.1,40.0,34.6,27.3,1.2,736
+2026-06-21T12:10:00Z,bare,48.5,51.2,34.8,27.1,1.0,742
+2026-06-21T12:10:00Z,white,39.6,42.3,34.8,27.1,1.0,742
+2026-06-21T12:10:00Z,stratovane,37.0,39.8,34.8,27.1,1.0,742
