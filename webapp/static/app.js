@@ -60,11 +60,23 @@ function showLoader(show) {
     document.getElementById('loader').classList.toggle('hidden', !show);
 }
 
+// Persistent so uninitialized or failed loads never render as a blank page.
 function showError(msg) {
     const errCont = document.getElementById('error-container');
     errCont.textContent = msg;
     errCont.classList.remove('hidden');
-    setTimeout(() => errCont.classList.add('hidden'), 5000);
+}
+
+function hasPlotly() {
+    return typeof window.Plotly !== 'undefined' && typeof window.Plotly.newPlot === 'function';
+}
+
+function plot(elementId, traces, layout) {
+    if (!hasPlotly()) {
+        showError('Plotly failed to load — charts cannot be rendered. Check your connection/access-control setup and reload the page.');
+        return;
+    }
+    window.Plotly.newPlot(elementId, traces, layout);
 }
 
 // UI Updates
@@ -73,6 +85,9 @@ function updateValueDisplay(id, val) {
 }
 
 async function init() {
+    if (!hasPlotly()) {
+        showError('Plotly failed to load — charts unavailable. Data tables below will still populate once the model responds.');
+    }
     try {
         state.meta = await fetchAPI('/api/meta');
         state.params.materials = state.meta.materials;
@@ -233,7 +248,7 @@ function renderAltitudeCharts(data) {
         });
     });
 
-    Plotly.newPlot('chart-altitude-temp', t_elec_data.concat(t_surf_data), {
+    plot('chart-altitude-temp', t_elec_data.concat(t_surf_data), {
         title: 'Current Temperatures',
         xaxis: { title: 'Altitude (km)' },
         yaxis: { title: 'Temperature (°C)' },
@@ -257,7 +272,7 @@ function renderAltitudeCharts(data) {
         { x: labels, y: sol_vals, name: 'Absorbed Solar', type: 'bar', marker: {color: '#9999ff'} }
     ];
 
-    Plotly.newPlot('chart-altitude-qenv', q_data, {
+    plot('chart-altitude-qenv', q_data, {
         barmode: 'stack',
         title: 'Environmental Heat Rejection (Q_env)',
         yaxis: { title: 'Power (W)' },
@@ -290,7 +305,7 @@ async function updateTransientPage() {
             });
         });
 
-        Plotly.newPlot('chart-transient', traces, {
+        plot('chart-transient', traces, {
             title: '24h Electronics Temperature',
             xaxis: { title: 'Time (s)' },
             yaxis: { title: 'Temperature (°C)' },
@@ -345,7 +360,7 @@ async function updateSpectralPage() {
             margin: { t: 40 }
         };
 
-        Plotly.newPlot('chart-spectral', traces, layout);
+        plot('chart-spectral', traces, layout);
     } catch (e) {}
 }
 
@@ -370,17 +385,21 @@ async function runMC() {
         const progBar = document.getElementById('mc-progress');
         progBar.classList.remove('hidden');
         
-        const poll = setInterval(async () => {
-            const status = await fetchAPI(`/api/jobs/${jobId}`);
-            if (status.status === 'completed') {
+        const poll = setInterval(() => {
+            fetchAPI(`/api/jobs/${jobId}`).then((status) => {
+                if (status.status === 'completed' || status.status === 'failed') {
+                    clearInterval(poll);
+                    progBar.classList.add('hidden');
+                    if (status.status === 'completed') {
+                        renderMCResults(status.result);
+                    } else {
+                        showError(status.error || 'Monte Carlo job failed');
+                    }
+                }
+            }).catch(() => {
                 clearInterval(poll);
                 progBar.classList.add('hidden');
-                renderMCResults(status.result);
-            } else if (status.status === 'failed') {
-                clearInterval(poll);
-                progBar.classList.add('hidden');
-                showError(status.error);
-            }
+            });
         }, 1000);
 
     } catch (e) {}
@@ -393,7 +412,7 @@ function renderMCResults(res) {
         marker: { color: '#aaa' }
     };
 
-    Plotly.newPlot('chart-mc', [trace], {
+    plot('chart-mc', [trace], {
         title: `Electronics Temperature Distribution (n=${res.histogram.length})`,
         xaxis: { title: 'Temperature (°C)' },
         yaxis: { title: 'Frequency' },
@@ -424,7 +443,7 @@ async function updateUncertaintyPage() {
             marker: { color: '#666' }
         };
 
-        Plotly.newPlot('chart-tornado', [trace], {
+        plot('chart-tornado', [trace], {
             title: 'Sensitivity Tornado Chart',
             xaxis: { title: 'Impact on T_elec (K)' },
             margin: { t: 40 }
@@ -482,7 +501,7 @@ async function updateBenchmarkPage() {
             { x: winds, y: t_bare, name: 'Bare Al', mode: 'lines+markers', line: {color: materialColor('BARE_ALUMINUM_OXIDIZED')} }
         ];
 
-        Plotly.newPlot('chart-benchmark-wind', traces, {
+        plot('chart-benchmark-wind', traces, {
             title: 'Effect of Wind on Surface Temperature',
             xaxis: { title: 'Wind Speed (m/s)' },
             yaxis: { title: 'Temperature (°C)' },

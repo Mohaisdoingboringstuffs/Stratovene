@@ -1,7 +1,8 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, Response
 import logging
 import os
 from pathlib import Path
+import struct
 import subprocess
 import tempfile
 import uuid
@@ -28,6 +29,7 @@ app = Flask(
     __name__,
     static_folder=str(ROOT_DIR / 'webapp' / 'static'),
     template_folder=str(ROOT_DIR / 'webapp' / 'templates'),
+    static_url_path='',
 )
 
 # Model Versioning
@@ -114,6 +116,22 @@ def run_mc_job(job_id, cfg, material, altitude, n, seed):
 @app.route('/')
 def index():
     return send_from_directory(str(ROOT_DIR / 'webapp' / 'static'), 'index.html')
+
+def _favicon_ico_bytes(size=16, bgra=(0xFF, 0x6B, 0x1A, 0xFF)):
+    px = bytes(bgra) * (size * size)
+    stride = ((size // 8) + 3) // 4 * 4
+    mask = bytes(stride * size)
+    header = struct.pack('<IiiHHIIiiII', 40, size, size * 2, 1, 32, 0, len(px) + len(mask), 0, 0, 0, 0)
+    image = header + px + mask
+    icon_dir = struct.pack('<HHH', 0, 1, 1)
+    entry = struct.pack('<BBBBHHII', size, size, 0, 0, 1, 32, len(image), len(icon_dir) + 16)
+    return icon_dir + entry + image
+
+_FAVICON_ICO = _favicon_ico_bytes()
+
+@app.route('/favicon.ico')
+def favicon():
+    return Response(_FAVICON_ICO, mimetype='image/x-icon')
 
 @app.route('/api/meta', methods=['GET'])
 def api_meta():

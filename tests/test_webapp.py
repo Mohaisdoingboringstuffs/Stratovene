@@ -63,13 +63,16 @@ def test_api_altitude_validation(client):
     assert resp.status_code == 400
 
 def test_no_hardcoded_data():
-    """Scan webapp/static/ for known model output numbers."""
+    """Scan webapp/static/ for known model output numbers (app-owned files only)."""
     forbidden_numbers = ["22.98", "-6.61", "1.09", "102.1", "14.1"]
-    
-    files_to_scan = glob.glob("webapp/static/**/*", recursive=True)
-    
-    for file_path in files_to_scan:
-        if os.path.isfile(file_path) and (file_path.endswith('.html') or file_path.endswith('.js') or file_path.endswith('.css')):
+
+    # Exclude third-party bundles: static/vendor/* (e.g. plotly.min.js) is not
+    # app-owned and can legitimately contain arbitrary numerals.
+    app_files = [p for p in glob.glob("webapp/static/**/*", recursive=True)
+                 if os.path.isfile(p) and "/vendor/" not in os.path.relpath(p).replace(os.sep, "/")]
+
+    for file_path in app_files:
+        if file_path.endswith('.html') or file_path.endswith('.js') or file_path.endswith('.css'):
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
                 for num in forbidden_numbers:
