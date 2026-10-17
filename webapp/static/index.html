@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STRATOVANE Thermal Model</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="vendor/plotly.min.js"></script>
+</head>
+<body>
+    <div id="honesty-banner" class="banner">
+        Preliminary model. Not flight-proven. Uncalibrated against measurements. Results use literature optical properties and assumed scenario inputs.
+    </div>
+
+    <nav class="main-nav">
+        <div class="nav-brand">STRATOVANE</div>
+        <div class="nav-links">
+            <a href="#overview" class="nav-item active" data-section="overview">Overview</a>
+            <a href="#altitude" class="nav-item" data-section="altitude">Altitude Explorer</a>
+            <a href="#transient" class="nav-item" data-section="transient">24h Simulation</a>
+            <a href="#spectral" class="nav-item" data-section="spectral">Spectral View</a>
+            <a href="#uncertainty" class="nav-item" data-section="uncertainty">Uncertainty</a>
+            <a href="#benchmark" class="nav-item" data-section="benchmark">Benchmark</a>
+            <a href="#experiment" class="nav-item" data-section="experiment">Experiments</a>
+            <a href="#limitations" class="nav-item" data-section="limitations">Limitations</a>
+        </div>
+    </nav>
+
+    <main id="content">
+        <!-- Sections will be rendered here by JS -->
+        <div id="loader" class="loader hidden">Loading simulation data...</div>
+        <div id="error-container" class="error-container hidden"></div>
+        
+        <section id="overview" class="page-section">
+            <h1>STRATOVANE Thermal Model</h1>
+            <div class="intro-text">
+                <p>The STRATOVANE model predicts the thermal behavior of a stratospheric electronics enclosure using a multi-node heat balance. It accounts for solar irradiance, atmospheric longwave radiation, and convective cooling in thin air.</p>
+                <p>This tool allows for the exploration of how different material coatings (e.g., AAO) affect the internal electronics temperature across various altitudes and scenarios.</p>
+            </div>
+            <div class="meta-info" id="model-meta">
+                <!-- Loaded from /api/meta -->
+            </div>
+        </section>
+
+        <section id="altitude" class="page-section hidden">
+            <h2>Altitude Explorer</h2>
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label>Altitude: <span id="val-altitude">20</span> km</label>
+                    <input type="range" id="slide-altitude" min="0" max="25" step="1" value="20">
+                </div>
+                <div class="control-group">
+                    <label>Wind Speed: <span id="val-wind">5.0</span> m/s <small>(ASSUMED)</small></label>
+                    <input type="range" id="slide-wind" min="0" max="10" step="0.1" value="5.0">
+                </div>
+                <div class="control-group">
+                    <label>Internal Heat: <span id="val-heat">20</span> W <small>(ASSUMED)</small></label>
+                    <input type="range" id="slide-heat" min="5" max="50" step="1" value="20">
+                </div>
+                <div class="control-group">
+                    <label>Solar Scale: <span id="val-solar">1.0</span>x <small>(ASSUMED)</small></label>
+                    <input type="range" id="slide-solar" min="0" max="2" step="0.1" value="1.0">
+                </div>
+            </div>
+            <div class="chart-container">
+                <div id="chart-altitude-temp"></div>
+                <div class="caption">T_electronics and T_surface vs altitude. Note: The advantage of AAO comes primarily from lower solar absorption.</div>
+            </div>
+            <div class="chart-container">
+                <div id="chart-altitude-qenv"></div>
+                <div class="caption">Environmental heat breakdown (Q_env). The three terms (Radiation, Convection, Solar) sum to the internal heat load at steady state.</div>
+            </div>
+        </section>
+
+        <section id="transient" class="page-section hidden">
+            <h2>24h Simulation</h2>
+            <div class="chart-container">
+                <div id="chart-transient"></div>
+                <div class="caption">Electronics temperature over 24 hours at selected altitude.</div>
+            </div>
+            <div id="transient-metrics" class="metrics-grid"></div>
+        </section>
+
+        <section id="spectral" class="page-section hidden">
+            <h2>Spectral View</h2>
+            <div class="chart-container">
+                <div id="chart-spectral"></div>
+                <div class="caption">Emissivity and reflectance spectra. The shaded region indicates the atmospheric window (8-13 μm).</div>
+            </div>
+        </section>
+
+        <section id="uncertainty" class="page-section hidden">
+            <h2>Uncertainty Analysis</h2>
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label>Samples (n): <span id="val-mc-n">2000</span></label>
+                    <input type="number" id="input-mc-n" value="2000">
+                </div>
+                <div class="control-group">
+                    <label>Seed: <span id="val-mc-seed">42</span></label>
+                    <input type="number" id="input-mc-seed" value="42">
+                </div>
+                <button id="btn-run-mc">Run Monte Carlo</button>
+                <div id="mc-progress" class="progress-bar hidden">
+                    <div id="mc-progress-fill" class="progress-fill"></div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <div id="chart-mc"></div>
+                <div class="caption">Monte Carlo histogram. The spread covers parameter uncertainty only, not model-form error.</div>
+            </div>
+            <div class="chart-container">
+                <div id="chart-tornado"></div>
+                <div class="caption">Sensitivity Tornado chart showing the impact of parameter variations on electronics temperature.</div>
+            </div>
+        </section>
+
+        <section id="benchmark" class="page-section hidden">
+            <h2>Literature Benchmark</h2>
+            <div id="benchmark-results" class="benchmark-container"></div>
+            <div class="chart-container">
+                <div id="chart-benchmark-wind"></div>
+                <div class="caption">Wind speed sweep showing the effect on temperature contrast.</div>
+            </div>
+        </section>
+
+        <section id="experiment" class="page-section hidden">
+            <h2>Experimental Data</h2>
+            <div class="upload-section">
+                <label for="exp-upload" class="btn">Upload Experiment CSV</label>
+                <input type="file" id="exp-upload" accept=".csv" style="display:none">
+                <button id="btn-exp-example" class="btn-secondary">Load Synthetic Example</button>
+            </div>
+            <div id="exp-metrics-display" class="metrics-display"></div>
+            <div class="chart-container">
+                <div id="chart-experiment"></div>
+                <div class="caption">Measured vs Modeled surface temperature.</div>
+            </div>
+        </section>
+
+        <section id="limitations" class="page-section hidden">
+            <h2>Model Limitations</h2>
+            <div id="limitations-list" class="limitations-list">
+                <!-- Loaded from /api/meta -->
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

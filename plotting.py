@@ -99,7 +99,7 @@ def plot_transient(tr, path: Path) -> Path:
     fig, ax = plt.subplots(figsize=(8, 4.5))
     hours = tr.time_s / 3600.0
     ax.plot(hours, tr.t_electronics_k - 273.15, label="electronics")
-    ax.plot(hours, tr.t_surface_k - 273.15, label="surface")
+    ax.plot(hours, tr.t_wall_k - 273.15, label="wall")
     ax.plot(hours, tr.t_air_k - 273.15, label="US76 T_air")
     ax.set_xlabel("Time (h)")
     ax.set_ylabel("Temperature (C)")

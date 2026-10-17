@@ -134,6 +134,9 @@ class NodeSolution:
     q_space_w: float
     q_atm_absorbed_emitted_w: float
     p_cool_net_w: float
+    q_env_rad_net_w: float
+    q_env_conv_w: float
+    q_env_solar_w: float
     h_w_m2_k: float
     energy_balance_error_w: float
     relative_energy_error: float
@@ -344,9 +347,24 @@ def solve_steady(
     q_out = rad["q_out"] + q_c
     err = q_in - q_out
     rel = abs(err) / max(abs(q_in), 1e-12)
-    p_cool = rad["q_out"] - rad["q_atm"] - q_solar - q_c  # net heat leaving surface to env, minus solar
-    # Clearer: net environmental cooling of the box = q_out + q_c - q_atm - q_g - q_solar
-    # At steady state this equals q_elec.
+    # Net environmental heat rejected by the enclosure surface, split into its
+    # three physical channels (all W, positive = leaves the surface to the
+    # environment):
+    #     q_env_rad_net = emitted LW - absorbed atm LW - absorbed ground LW
+    #     q_env_conv    = convective exchange h A (T_s - T_air)
+    #     q_env_solar   = -absorbed solar (a source, so it appears negative here)
+    # Steady-state surface balance (residual r_s = 0) gives exactly
+    #     q_env_conv + q_env_rad_net + q_env_solar = q_cond
+    # and the wall/electronics balance gives q_cond = q_elec. Hence
+    #     q_env_conv + q_env_rad_net - q_solar = Q_internal
+    # i.e. p_cool_net_w equals the internal heat load at steady state BY
+    # CONSTRUCTION (first law), not because it is echoed. It is a genuine
+    # consistency check, and the split makes the rejection path visible.
+    q_env_rad_net = rad["q_out"] - rad["q_atm"] - rad["q_g"]
+    q_env_conv = q_c
+    q_env_solar = -q_solar
+    p_cool = q_env_rad_net + q_env_conv + q_env_solar
+
     t_sky_bb, _ = effective_sky_temperature(atm)
     t_sky = rad["t_sky"] if rad["t_sky"] > 0 else t_sky_bb
     ledger = ParameterLedger()
@@ -375,7 +393,10 @@ def solve_steady(
         q_window_out_w=float(rad["q_win"]),
         q_space_w=float(rad["q_space"]),
         q_atm_absorbed_emitted_w=float(rad["q_atm_abs"]),
-        p_cool_net_w=float(q_out - rad["q_atm"] - rad["q_g"] - q_solar),
+        p_cool_net_w=float(q_env_rad_net + q_env_conv + q_env_solar),
+        q_env_rad_net_w=float(q_env_rad_net),
+        q_env_conv_w=float(q_env_conv),
+        q_env_solar_w=float(q_env_solar),
         h_w_m2_k=conv.h_combined,
         energy_balance_error_w=float(err),
         relative_energy_error=float(rel),
@@ -406,7 +427,10 @@ def comparison_table(results: dict[str, NodeSolution]) -> list[dict]:
                 "Q_atm_in_W": r.q_atm_in_w,
                 "Q_solar_W": r.q_solar_w,
                 "Q_conv_W": r.q_conv_w,
-                "P_cool_net_W": r.p_cool_net_w,
+                "Q_env_rejected_W": r.p_cool_net_w,
+                "Q_env_rad_net_W": r.q_env_rad_net_w,
+                "Q_env_conv_W": r.q_env_conv_w,
+                "Q_env_solar_W": r.q_env_solar_w,
                 "mass_total_kg": r.mass.total_enclosure_kg,
                 "mass_aao_kg": r.mass.aao_kg,
                 "power_consumption_W": 0.0,

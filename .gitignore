@@ -6,3 +6,4 @@ outputs/
 *.pyc
 .ipynb_checkpoints/
 .DS_Store
+audit/

@@ -91,7 +91,9 @@ def run_comparison(cfg: SimulationConfig, altitudes=None) -> tuple[list[dict], d
                 f"{name:28s} z={z/1000:5.1f} km  "
                 f"T_s={sols[name].t_surface_c:7.2f} C  "
                 f"T_e={sols[name].t_electronics_c:7.2f} C  "
-                f"Pcool={sols[name].p_cool_net_w:7.2f} W  "
+                f"Q_env={sols[name].p_cool_net_w:7.2f} W "
+                f"(rad={sols[name].q_env_rad_net_w:7.2f}, conv={sols[name].q_env_conv_w:7.2f}, "
+                f"sol={sols[name].q_env_solar_w:7.2f})  "
                 f"bal={sols[name].relative_energy_error:.2e}"
             )
         last = sols
@@ -156,7 +158,7 @@ def generate_all(cfg: SimulationConfig) -> None:
     plot_altitude_temperatures(zs, series_s, "Surface temperature (C)", plots / "01_surface_temperature_vs_altitude.png")
     plot_altitude_temperatures(zs, series_e, "Electronics temperature (C)", plots / "02_electronics_temperature_vs_altitude.png")
     plot_altitude_temperatures(zs, series_adv, "Cooling advantage of literature AAO (K)", plots / "05_cooling_advantage_vs_altitude.png")
-    plot_altitude_temperatures(zs, series_p, "Net cooling of enclosure P_cool (W)", plots / "06_cooling_power_vs_altitude.png")
+    plot_altitude_temperatures(zs, series_p, "Net environmental cooling Q_env (W)", plots / "06_cooling_power_vs_altitude.png")
 
     gs = np.array([0.0, 200.0, 400.0, 600.0, 800.0, 1000.0, 1200.0])
     g_series = {}
@@ -229,7 +231,8 @@ def generate_all(cfg: SimulationConfig) -> None:
 
     print("\n--- Experiment example ---")
     df = load_experiment_csv()
-    met = exp_metrics(df, cfg=None)
+    met = exp_metrics(df, cfg=cfg)
+    print(f"DATA SOURCE: {met.data_source}")
     print(met)
     # residual plot vs ambient-surface as placeholder if no coupled predictions
     plot_vs_x(
@@ -329,7 +332,9 @@ def main(argv=None) -> int:
     elif mode == 7:
         df = load_experiment_csv()
         print(df.head())
-        print(exp_metrics(df))
+        met = exp_metrics(df)
+        print(f"DATA SOURCE: {met.data_source}")
+        print(met)
     elif mode == 8:
         mc = monte_carlo(cfg, load_materials()[cfg.stratovane_material_id], cfg.environment.altitude_m)
         print(mc.ranking_message)

@@ -22,7 +22,24 @@ def test_us76_sl():
 
 def test_planck_stefan_boltzmann():
     chk = planck_sigma_check(300.0)
-    assert chk["rel_error"] < 5e-3
+    # Wide integration range: residual is quadrature noise, not band truncation.
+    assert chk["rel_error"] < 1e-6
+    assert chk["lam_min_m"] <= 1e-8
+    assert chk["lam_max_m"] >= 1e-3
+
+
+def test_planck_sigma_truncation_source():
+    # Narrow band reproduces the historical ~6e-4 residual; widening removes it.
+    import numpy as np
+    from scipy.integrate import quad
+    from spectral import planck_exitance_lambda, stefan_boltzmann
+
+    t = 300.0
+    narrow, _ = quad(lambda l: float(planck_exitance_lambda(l, t)), 1e-6, 200e-6, limit=2000)
+    exact = stefan_boltzmann(t)
+    assert abs(narrow - exact) / exact > 1e-4
+    wide, _ = quad(lambda l: float(planck_exitance_lambda(l, t)), 1e-9, 1e-2, epsabs=1e-12, limit=2000)
+    assert abs(wide - exact) / exact < 1e-6
 
 
 def test_wien():

@@ -62,15 +62,26 @@ def band_integral(wavelength_m: np.ndarray, values: np.ndarray, lam_min_m: float
 
 
 def planck_sigma_check(temperature_k: float = 300.0) -> dict[str, float]:
-    """∫ π B_λ dλ over 1–200 μm vs σ T^4."""
+    """∫ π B_λ dλ over 1 nm – 10 mm vs σ T^4.
+
+    The originally used 1–200 μm window is physically complete for 300 K, but
+    integrating the Planck shape over a finite band leaves a small truncation
+    residue. Widening to 1 nm – 10 mm (and tightening the quadrature) makes the
+    residual ~1e-9, confirming that the earlier ~6.5e-4 mismatch was pure
+    integration-range truncation and NOT a wrong Stefan-Boltzmann constant.
+    """
+    lam_min_m = 1e-9
+    lam_max_m = 1e-2
 
     def integrand(lam: float) -> float:
         return float(planck_exitance_lambda(lam, temperature_k))
 
-    integral, err = quad(integrand, 1e-6, 200e-6, epsabs=1e-4, limit=250)
+    integral, err = quad(integrand, lam_min_m, lam_max_m, epsabs=1e-12, epsrel=1e-13, limit=2000)
     exact = stefan_boltzmann(temperature_k)
     return {
         "T_K": temperature_k,
+        "lam_min_m": lam_min_m,
+        "lam_max_m": lam_max_m,
         "integral_W_m2": integral,
         "sigma_T4_W_m2": exact,
         "rel_error": abs(integral - exact) / exact,

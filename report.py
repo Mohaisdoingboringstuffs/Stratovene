@@ -81,7 +81,7 @@ def write_report(
         lines.append(
             f"| {r['material']} | {r['altitude_m']:.0f} | {r['T_surface_C']:.2f} | {r['T_wall_C']:.2f} | "
             f"{r['T_electronics_C']:.2f} | {r['Q_rad_out_W']:.2f} | {r['Q_solar_W']:.2f} | "
-            f"{r['Q_conv_W']:.2f} | {r['P_cool_net_W']:.2f} | {r['mass_total_kg']:.4f} | {r['power_consumption_W']:.1f} |"
+            f"{r['Q_conv_W']:.2f} | {r['Q_env_rejected_W']:.2f} | {r['mass_total_kg']:.4f} | {r['power_consumption_W']:.1f} |"
         )
     lines += [
         "",
